@@ -72,6 +72,7 @@
     angular.element.prototype.closest = function( selector) {
       var elem = this[0];
       var matchesSelector = elem.matches || elem.webkitMatchesSelector || elem.mozMatchesSelector || elem.msMatchesSelector;
+      if (!matchesSelector) { return []; }
 
       while (elem) {
         if (matchesSelector.bind(elem)(selector)) {
@@ -165,8 +166,8 @@
    * put as much logic in the controller (instead of the link functions) as possible so it can be easily tested.
    */
   .controller('uiSelectCtrl',
-    ['$scope', '$element', '$timeout', '$filter', 'RepeatParser', 'uiSelectMinErr', 'uiSelectConfig',
-    function($scope, $element, $timeout, $filter, RepeatParser, uiSelectMinErr, uiSelectConfig) {
+    ['$scope', '$element', '$timeout', '$filter', '$document', 'RepeatParser', 'uiSelectMinErr', 'uiSelectConfig',
+    function($scope, $element, $timeout, $filter, $document, RepeatParser, uiSelectMinErr, uiSelectConfig) {
 
     var ctrl = this;
 
@@ -216,26 +217,32 @@
 
     // When the user clicks on ui-select, displays the dropdown list
     ctrl.activate = function(initSearchValue, avoidReset) {
-      if (!ctrl.disabled  && !ctrl.open) {
-        if(!avoidReset) _resetSearchInput();
-        ctrl.focusser.prop('disabled', true); //Will reactivate it on .close()
-        ctrl.open = true;
-        ctrl.activeMatchIndex = -1;
+      $timeout(function(){
+        // dispatch a document click (calling onDocumentClick): closes all open selects in page.
+        $document.triggerHandler('click');
+      });
+      $timeout(function() {
+        if (!ctrl.disabled && !ctrl.open) {
+          if (!avoidReset) _resetSearchInput();
+          ctrl.focusser.prop('disabled', true); //Will reactivate it on .close()
+          ctrl.open = true;
+          ctrl.activeMatchIndex = -1;
 
-        ctrl.activeIndex = ctrl.activeIndex >= ctrl.items.length ? 0 : ctrl.activeIndex;
+          ctrl.activeIndex = ctrl.activeIndex >= ctrl.items.length ? 0 : ctrl.activeIndex;
 
-        // ensure that the index is set to zero for tagging variants
-        // that where first option is auto-selected
-        if ( ctrl.activeIndex === -1 && ctrl.taggingLabel !== false ) {
-          ctrl.activeIndex = 0;
+          // ensure that the index is set to zero for tagging variants
+          // that where first option is auto-selected
+          if (ctrl.activeIndex === -1 && ctrl.taggingLabel !== false) {
+            ctrl.activeIndex = 0;
+          }
+
+          // Give it time to appear before focus
+          $timeout(function () {
+            ctrl.search = initSearchValue || ctrl.search;
+            _searchInput[0].focus();
+          });
         }
-
-        // Give it time to appear before focus
-        $timeout(function() {
-          ctrl.search = initSearchValue || ctrl.search;
-          _searchInput[0].focus();
-        });
-      }
+      });
     };
 
     ctrl.findGroupByName = function(name) {
